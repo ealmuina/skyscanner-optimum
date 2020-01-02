@@ -85,14 +85,21 @@ def poll_results(key):
 
 
 def main():
+    best = None
     current = datetime.date(2020, 4, 1)
     end = datetime.date(2020, 5, 14)
     while current < end:
         for i in range(17, 23):
             key = create_session(str(current), current + datetime.timedelta(days=i))
-            best = poll_results(key)
-            print(current, i, best)
+            flight = poll_results(key)
+            print(current, i, *flight)
+            if not best or flight[0] < best[2]:
+                best = (current, i, *flight)
         current += datetime.timedelta(days=1)
+
+    print('=============================')
+    print(best)
+    print('=============================')
 
 
 if __name__ == '__main__':
