@@ -26,7 +26,7 @@ def create_session(outbound_date, inbound_date):
     response = requests.request("POST", url, data=payload, headers=headers)
     while response.text != '{}':
         response = requests.request("POST", url, data=payload, headers=headers)
-        time.sleep(3)
+        time.sleep(1)
 
     location = response.headers['Location'].split('/')[-1]
     return location
@@ -49,8 +49,11 @@ def poll_results(key):
     response = {}
 
     while 'Status' not in response or response['Status'] != 'UpdatesComplete':
-        time.sleep(5)
-        response = requests.request("GET", url, headers=headers, params=querystring)
+        time.sleep(1)
+        try:
+            response = requests.request("GET", url, headers=headers, params=querystring)
+        except:
+            continue
         response = json.loads(response.text)
 
     carriers = {}
@@ -92,7 +95,10 @@ def main():
         for i in range(17, 23):
             key = create_session(str(current), current + datetime.timedelta(days=i))
             flight = poll_results(key)
-            print(current, i, *flight)
+            message = ' '.join(map(str, (current, i, *flight)))
+            if flight[0] < 600:
+                message = '\033[92m' + message + '\033[0m'
+            print(message)
             if not best or flight[0] < best[2]:
                 best = (current, i, *flight)
         current += datetime.timedelta(days=1)
