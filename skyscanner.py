@@ -5,34 +5,55 @@ import time
 import requests
 
 
-def create_session(outbound_date, inbound_date):
+def create_session(config, outbound_date, inbound_date, origin_place, destination_place):
     url = "https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/v1.0"
 
-    payload = f"inboundDate={inbound_date}" \
-              "&cabinClass=economy" \
+    payload = "cabinClass=economy" \
               "&country=ES" \
               "&currency=EUR" \
               "&locale=es-ES" \
-              "&originPlace=MAD-sky" \
-              "&destinationPlace=HAVA-sky" \
+              f"&originPlace={origin_place}" \
+              f"&destinationPlace={destination_place}" \
               f"&outboundDate={outbound_date}" \
               "&adults=1"
+
+    if inbound_date:
+        payload += f"&inboundDate={inbound_date}"
+
     headers = {
         'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
-        'x-rapidapi-key': "1f56c1c2famsh6ad3494bc0b9eb3p13f3a4jsn668d79c5fd77",
+        'x-rapidapi-key': config['x-rapidapi-key'],
         'content-type': "application/x-www-form-urlencoded"
     }
 
-    response = requests.request("POST", url, data=payload, headers=headers)
-    while response.text != '{}':
-        response = requests.request("POST", url, data=payload, headers=headers)
-        time.sleep(1)
+    while True:
+        try:
+            response = requests.request("POST", url, data=payload, headers=headers)
+            if response.text == '{}':
+                break
+            else:
+                print(response.text)
+        finally:
+            time.sleep(5)
 
     location = response.headers['Location'].split('/')[-1]
     return location
 
 
-def poll_results(key):
+def get_place(config, place):
+    url = "https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/autosuggest/v1.0/ES/EUR/es-ES/"
+    querystring = {"query": place}
+    headers = {
+        'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
+        'x-rapidapi-key': config['x-rapidapi-key']
+    }
+    response = requests.request("GET", url, headers=headers, params=querystring)
+    response = json.loads(response.text)
+    if 'Places' in response and response['Places']:
+        return response['Places'][0]['PlaceId']
+
+
+def poll_results(config, key):
     url = f"https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/uk2/v1.0/{key}"
 
     querystring = {
@@ -43,7 +64,7 @@ def poll_results(key):
 
     headers = {
         'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
-        'x-rapidapi-key': "1f56c1c2famsh6ad3494bc0b9eb3p13f3a4jsn668d79c5fd77"
+        'x-rapidapi-key': config['x-rapidapi-key']
     }
 
     response = {}
@@ -87,21 +108,33 @@ def poll_results(key):
     return best
 
 
-def main():
+def search_flights(config, query):
     best = None
-    current = datetime.date(2020, 4, 1)
-    end = datetime.date(2020, 5, 14)
+    current = query['start_date']
+    end = query['end_date']
+    sessions = []
+
     while current < end:
-        for i in range(17, 23):
-            key = create_session(str(current), current + datetime.timedelta(days=i))
-            flight = poll_results(key)
-            message = ' '.join(map(str, (current, i, *flight)))
-            if flight[0] < 600:
-                message = '\033[92m' + message + '\033[0m'
-            print(message)
-            if not best or flight[0] < best[2]:
-                best = (current, i, *flight)
+        for i in range(query['min_days'], query['max_days'] + 1):
+            key = create_session(
+                config,
+                str(current),
+                current + datetime.timedelta(days=i),
+                get_place(config, query['from']),
+                get_place(config, query['to'])
+            )
+            sessions.append((key, current, i))
+            print(current, i)
         current += datetime.timedelta(days=1)
+
+    for key, start, days in sessions:
+        flight = poll_results(config, key)
+        message = ' '.join(map(str, (start, days, *flight)))
+        if flight[0] < 600:
+            message = '\033[92m' + message + '\033[0m'
+        print(message)
+        if not best or flight[0] < best[2]:
+            best = (start, days, *flight)
 
     print('=============================')
     print(best)
@@ -109,4 +142,15 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    query = {
+        'from': 'Madrid',
+        'to': 'Havana',
+        'start_date': datetime.date(2020, 4, 1),
+        'end_date': datetime.date(2020, 5, 14),
+        'min_days': 17,
+        'max_days': 22
+    }
+
+    with open('config.json') as config:
+        config = json.load(config)
+        search_flights(config, query)
