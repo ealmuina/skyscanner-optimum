@@ -30,7 +30,7 @@ def start(update, context):
 def origin(update, context):
     context.user_data['origin'] = update.message.text
     update.message.reply_text(
-        f'I have heard {context.user_data["origin"]} is a very nice place!'
+        f'I have heard {context.user_data["origin"]} is a very nice place! '
         'Where are you going to?'
     )
     return DESTINATION
@@ -40,7 +40,7 @@ def destination(update, context):
     context.user_data['destination'] = update.message.text
     reply_keyboard = [['Round trip', 'One way']]
     update.message.reply_text(
-        f'I would like to go to {context.user_data["destination"]} as well!'
+        f'I would like to go to {context.user_data["destination"]} as well! '
         'Are you planning to do a one way or a round trip?',
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     )
@@ -50,7 +50,7 @@ def destination(update, context):
 def trip_type(update, context):
     context.user_data['trip_type'] = update.message.text
     update.message.reply_text(
-        'We are almost done.'
+        'We are almost done, I just need a couple more questions. '
         'From which date should I start looking for flights? (DD/MM/YYYY)'
     )
     return START_DATE
@@ -78,7 +78,7 @@ def end_date(update, context):
 def min_days(update, context):
     context.user_data['min_days'] = int(update.message.text)
     update.message.reply_text(
-        'Just one more question...'
+        'Just one more question... '
         'What is the maximum number of days you could be there?'
     )
     return MAX_DAYS
@@ -91,15 +91,15 @@ def max_days(update, context):
 
 def finish_conversation(update, context):
     update.message.reply_text(
-        'Alright, I think I have everything I needed.'
-        'I will be back as I find the best flights for you...'
+        'Alright, I think I have everything I needed. '
+        'I will be back as soon as I find the best flights for you...'
     )
-    with open('config.json') as config:
-        config = json.load(config)
-        result = skyscanner.search_flights(config, context.user_data)
-        update.message.reply_text(
-            str(result)
-        )
+    results = skyscanner.search_flights(CONFIG, context.user_data)
+    answer = 'Here are the best 5 options I have found:\n\n'
+    answer += '\n'.join([
+        f'{date}: {days} days for {price} on {airline}.' for date, days, price, airline, _ in results[:5]
+    ])
+    update.message.reply_text(answer)
     return ConversationHandler.END
 
 
@@ -121,7 +121,7 @@ def main():
     # Create the Updater and pass it your bot's token.
     # Make sure to set use_context=True to use the new context based callbacks
     # Post version 12 this will no longer be necessary
-    updater = Updater("948625470:AAEi9m-7uZGxmGmo46WmwUltETl2HFoZIMQ", use_context=True)
+    updater = Updater(CONFIG['telegram_api_key'], use_context=True)
 
     # Get the dispatcher to register handlers
     dp = updater.dispatcher
@@ -158,4 +158,6 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    with open('config.json') as config:
+        CONFIG = json.load(config)
+        main()
