@@ -34,7 +34,7 @@ def create_session(config, outbound_date, inbound_date, origin_place, destinatio
             else:
                 print(response.text)
         finally:
-            time.sleep(5)
+            time.sleep(1)
 
     location = response.headers['Location'].split('/')[-1]
     return location
@@ -109,10 +109,10 @@ def poll_results(config, key):
 
 
 def search_flights(config, query):
-    best = None
     current = query['start_date']
     end = query['end_date']
     sessions = []
+    results = []
 
     while current < end:
         for i in range(query['min_days'], query['max_days'] + 1):
@@ -120,8 +120,8 @@ def search_flights(config, query):
                 config,
                 str(current),
                 current + datetime.timedelta(days=i),
-                get_place(config, query['from']),
-                get_place(config, query['to'])
+                get_place(config, query['origin']),
+                get_place(config, query['destination'])
             )
             sessions.append((key, current, i))
             print(current, i)
@@ -129,22 +129,28 @@ def search_flights(config, query):
 
     for key, start, days in sessions:
         flight = poll_results(config, key)
-        message = ' '.join(map(str, (start, days, *flight)))
+        entry = (start, days, *flight)
+
+        results.append(entry)
+        message = ' '.join(map(str, entry))
+
         if flight[0] < 600:
             message = '\033[92m' + message + '\033[0m'
         print(message)
-        if not best or flight[0] < best[2]:
-            best = (start, days, *flight)
+
+    results.sort(key=lambda e: e[2])
 
     print('=============================')
-    print(best)
+    print(results[0])
     print('=============================')
+
+    return results
 
 
 if __name__ == '__main__':
     query = {
-        'from': 'Madrid',
-        'to': 'Havana',
+        'origin': 'Madrid',
+        'destination': 'Havana',
         'start_date': datetime.date(2020, 4, 1),
         'end_date': datetime.date(2020, 5, 14),
         'min_days': 17,
