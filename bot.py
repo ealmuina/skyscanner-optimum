@@ -88,7 +88,7 @@ def end_date(update, context):
         return finish_conversation(update, context)
     else:
         update.message.reply_text(
-            f"What is the minimum number of days you would like to stay in {context.user_data['destination']}?"
+            f"What is the minimum number of days you would like to stay in {context.chat_data['destination']}?"
         )
         return MIN_DAYS
 
