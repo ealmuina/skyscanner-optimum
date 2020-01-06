@@ -129,6 +129,8 @@ def search_one_way(config, query):
 
     for key, start in sessions:
         flight = poll_results(config, key)
+        if not flight:
+            continue
         entry = (start, *flight)
 
         results.append(entry)

@@ -25,31 +25,40 @@ def _remove_previous_task(update):
         TASKS.pop(update.effective_user.id)
 
 
+def _send_result_message(update, context, message):
+    if message:
+        message = 'Here are the best 5 options I have found:\n\n' + message
+    else:
+        message = f"I am sorry, there are no direct flights from {context.chat_data['query'].origin} to " \
+                  f"{context.chat_data['query'].destination} that meet the conditions you have specified. :'("
+    update.message.reply_text(message)
+    logger.info('"%s" has received the result.', update.effective_user.full_name)
+
+
 def _task_one_way(update, context):
-    answer = 'Here are the best 5 options I have found:\n\n'
     results = skyscanner.search_one_way(CONFIG, context.chat_data)
-    answer += '\n'.join([
+    message = '\n'.join([
         f'{date}: for {price} on {airline}.'
         for date, price, airline, _ in results[:5]
     ])
-    update.message.reply_text(answer)
-    logger.info('"%s" has received the result.', update.effective_user.full_name)
+    _send_result_message(update, context, message)
 
 
 def _task_round_trip(update, context):
     answer = 'Here are the best 5 options I have found:\n\n'
     results = skyscanner.search_round_trip(CONFIG, context.chat_data)
-    answer += '\n'.join([
+    message = '\n'.join([
         f'{date}: {days} days for {price} on {airline1}/{airline2}.'
         for date, days, price, airline1, airline2 in results[:5]
     ])
-    update.message.reply_text(answer)
-    logger.info('"%s" has received the result.', update.effective_user.full_name)
+    _send_result_message(update, context, message)
 
 
 def _validate_date(update):
     try:
-        date = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
+        date = update.message.text
+        date = date.replace('-', '/')
+        date = datetime.datetime.strptime(date, '%d/%m/%Y').date()
     except ValueError:
         update.message.reply_text(
             f'{update.message.text} is not a valid date. '
@@ -127,7 +136,6 @@ def destination(update, context):
         return DESTINATION
     context.chat_data['destination'] = destination_code
     context.chat_data['query'].destination = update.message.text
-    context.chat_data['verbose_destination'] = update.message.text
     reply_keyboard = [['Round trip', 'One way']]
     update.message.reply_text(
         f'I would like to go to {update.message.text} as well! '
@@ -164,13 +172,26 @@ def end_date(update, context):
     date = _validate_date(update)
     if not date:
         return END_DATE
+    if date < context.chat_data['start_date']:
+        update.message.reply_text(
+            f'You must set a date after the one you set before {context.chat_data["start_date"]}. '
+            'Please try again...'
+        )
+        return END_DATE
+    if (date - context.chat_data['start_date']).days > 60:
+        update.message.reply_text(
+            'That range of dates for search is too broad. '
+            'Please, set a date with less than 60 days of difference with one you set before '
+            f'({context.chat_data["start_date"]})...'
+        )
+        return MAX_DAYS
     context.chat_data['end_date'] = date
     context.chat_data['query'].end_date = context.chat_data['end_date']
     if context.chat_data['trip_type'] == 'One way':
         return finish_conversation(update, context)
     else:
         update.message.reply_text(
-            f"What is the minimum number of days you would like to stay in {context.chat_data['verbose_destination']}?"
+            f"What is the minimum number of days you would like to stay in {context.chat_data['query'].destination}?"
         )
         return MIN_DAYS
 
@@ -191,6 +212,19 @@ def min_days(update, context):
 def max_days(update, context):
     days = _validate_integer(update)
     if not days:
+        return MAX_DAYS
+    if days < context.chat_data['min_days']:
+        update.message.reply_text(
+            'You have to set a maximum number of days greater or equal than the minimum you set before '
+            f"({context.chat_data['min_days']}). "
+            'Please, set a maximum of days with less than 30 days of difference with the minimum...'
+        )
+        return MAX_DAYS
+    if days - context.chat_data['min_days'] > 30:
+        update.message.reply_text(
+            'That range of days for search is too broad. '
+            'Please, set a maximum of days with less than 30 days of difference with the minimum...'
+        )
         return MAX_DAYS
     context.chat_data['max_days'] = days
     context.chat_data['query'].max_days = context.chat_data['max_days']
