@@ -92,9 +92,12 @@ def poll_results(config, key):
 
     for itinerary in response['Itineraries']:
         out_id = itinerary['OutboundLegId']
-        in_id = itinerary['InboundLegId']
+        if 'InboundLegId' in itinerary:
+            in_id = itinerary['InboundLegId']
+        else:
+            in_id = None
 
-        if out_id not in direct_flights or in_id not in direct_flights:
+        if out_id not in direct_flights or (in_id and in_id not in direct_flights):
             continue
 
         for p in itinerary['PricingOptions']:
@@ -102,19 +105,52 @@ def poll_results(config, key):
                 best = (
                     p['Price'],
                     direct_flights[out_id],
-                    direct_flights[in_id]
+                    direct_flights[in_id] if in_id else None
                 )
 
     return best
 
 
-def search_flights(config, query):
+def search_one_way(config, query):
     current = query['start_date']
     end = query['end_date']
     sessions = []
     results = []
 
-    while current < end:
+    while current <= end:
+        key = create_session(
+            config,
+            str(current),
+            None,
+            get_place(config, query['origin']),
+            get_place(config, query['destination'])
+        )
+        sessions.append((key, current))
+        print(current)
+        current += datetime.timedelta(days=1)
+
+    for key, start in sessions:
+        flight = poll_results(config, key)
+        entry = (start, *flight)
+
+        results.append(entry)
+        message = ' '.join(map(str, entry))
+
+        if flight[0] < 600:
+            message = '\033[92m' + message + '\033[0m'
+        print(message)
+
+    results.sort(key=lambda e: e[1])
+    return results
+
+
+def search_round_trip(config, query):
+    current = query['start_date']
+    end = query['end_date']
+    sessions = []
+    results = []
+
+    while current <= end:
         for i in range(query['min_days'], query['max_days'] + 1):
             key = create_session(
                 config,
@@ -139,11 +175,6 @@ def search_flights(config, query):
         print(message)
 
     results.sort(key=lambda e: e[2])
-
-    print('=============================')
-    print(results[0])
-    print('=============================')
-
     return results
 
 
@@ -159,4 +190,4 @@ if __name__ == '__main__':
 
     with open('config.json') as config:
         config = json.load(config)
-        search_flights(config, query)
+        search_round_trip(config, query)

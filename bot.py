@@ -94,12 +94,19 @@ def finish_conversation(update, context):
         'Alright, I think I have everything I needed. '
         'I will be back as soon as I find the best flights for you...'
     )
-    results = skyscanner.search_flights(CONFIG, context.user_data)
     answer = 'Here are the best 5 options I have found:\n\n'
-    answer += '\n'.join([
-        f'{date}: {days} days for {price} on {airline1}/{airline2}.'
-        for date, days, price, airline1, airline2 in results[:5]
-    ])
+    if context.user_data['trip_type'] == 'One way':
+        results = skyscanner.search_one_way(CONFIG, context.user_data)
+        answer += '\n'.join([
+            f'{date}: for {price} on {airline}.'
+            for date, price, airline, _ in results[:5]
+        ])
+    else:
+        results = skyscanner.search_round_trip(CONFIG, context.user_data)
+        answer += '\n'.join([
+            f'{date}: {days} days for {price} on {airline1}/{airline2}.'
+            for date, days, price, airline1, airline2 in results[:5]
+        ])
     update.message.reply_text(answer)
     return ConversationHandler.END
 
