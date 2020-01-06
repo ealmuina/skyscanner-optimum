@@ -34,7 +34,7 @@ def create_session(config, outbound_date, inbound_date, origin_place, destinatio
             else:
                 print(response.text)
         finally:
-            time.sleep(1)
+            time.sleep(2)
 
     location = response.headers['Location'].split('/')[-1]
     return location
