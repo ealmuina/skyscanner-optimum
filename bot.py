@@ -18,7 +18,11 @@ logger = logging.getLogger(__name__)
 
 ORIGIN, DESTINATION, TRIP_TYPE, START_DATE, END_DATE, MIN_DAYS, MAX_DAYS = range(7)
 
-tasks = {}
+
+def _remove_previous_task(update):
+    if update.effective_user.id in TASKS:
+        WORKER.remove_task(TASKS[update.effective_user.id])
+        TASKS.pop(update.effective_user.id)
 
 
 def _task_one_way(update, context):
@@ -92,9 +96,7 @@ def start(update, context):
         'Send /cancel to stop talking to me.\n\n'
         'What is the origin of your flight?'
     )
-    if update.effective_user.id in tasks:
-        WORKER.remove_task(tasks[update.effective_user.id])
-        tasks.pop(update.effective_user.id)
+    _remove_previous_task(update)
     return ORIGIN
 
 
@@ -206,7 +208,7 @@ def finish_conversation(update, context):
     else:
         task = _task_round_trip
     tid = WORKER.add_task(task, update, context)
-    tasks[update.effective_user.id] = tid
+    TASKS[update.effective_user.id] = tid
     logger.info('Completed query for "%s".', update.effective_user.full_name)
     return ConversationHandler.END
 
@@ -214,6 +216,7 @@ def finish_conversation(update, context):
 def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
+    _remove_previous_task(update)
     context.chat_data['query'].cancelled = True
     context.chat_data['query'].save()
 
@@ -221,6 +224,7 @@ def error(update, context):
 def cancel(update, context):
     user = update.message.from_user
     context.chat_data['query'].cancelled = True
+    _remove_previous_task(update)
     logger.info("User %s canceled the conversation.", user.first_name)
     update.message.reply_text('Bye! I hope we can talk again some day.',
                               reply_markup=ReplyKeyboardRemove())
@@ -269,6 +273,7 @@ def main():
 
 
 if __name__ == '__main__':
+    TASKS = {}
     WORKER = worker.Worker()
     with open('config.json') as config:
         CONFIG = json.load(config)
