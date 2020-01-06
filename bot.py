@@ -8,6 +8,7 @@ from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
 
 import skyscanner
 import model
+import worker
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -16,6 +17,8 @@ logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s
 logger = logging.getLogger(__name__)
 
 ORIGIN, DESTINATION, TRIP_TYPE, START_DATE, END_DATE, MIN_DAYS, MAX_DAYS = range(7)
+
+tasks = {}
 
 
 def start(update, context):
@@ -29,6 +32,9 @@ def start(update, context):
         'Send /cancel to stop talking to me.\n\n'
         'What is the origin of your flight?'
     )
+    if update.effective_user.id in tasks:
+        WORKER.remove_task(tasks[update.effective_user.id])
+        tasks.pop(update.effective_user.id)
     return ORIGIN
 
 
@@ -102,26 +108,38 @@ def max_days(update, context):
     return finish_conversation(update, context)
 
 
+def task_one_way(update, context):
+    answer = 'Here are the best 5 options I have found:\n\n'
+    results = skyscanner.search_one_way(CONFIG, context.chat_data)
+    answer += '\n'.join([
+        f'{date}: for {price} on {airline}.'
+        for date, price, airline, _ in results[:5]
+    ])
+    update.message.reply_text(answer)
+
+
+def task_round_trip(update, context):
+    answer = 'Here are the best 5 options I have found:\n\n'
+    results = skyscanner.search_round_trip(CONFIG, context.chat_data)
+    answer += '\n'.join([
+        f'{date}: {days} days for {price} on {airline1}/{airline2}.'
+        for date, days, price, airline1, airline2 in results[:5]
+    ])
+    update.message.reply_text(answer)
+
+
 def finish_conversation(update, context):
     context.chat_data['query'].save()
     update.message.reply_text(
         'Alright, I think I have everything I needed. '
         'I will be back as soon as I find the best flights for you...'
     )
-    answer = 'Here are the best 5 options I have found:\n\n'
     if context.chat_data['trip_type'] == 'One way':
-        results = skyscanner.search_one_way(CONFIG, context.chat_data)
-        answer += '\n'.join([
-            f'{date}: for {price} on {airline}.'
-            for date, price, airline, _ in results[:5]
-        ])
+        task = task_one_way
     else:
-        results = skyscanner.search_round_trip(CONFIG, context.chat_data)
-        answer += '\n'.join([
-            f'{date}: {days} days for {price} on {airline1}/{airline2}.'
-            for date, days, price, airline1, airline2 in results[:5]
-        ])
-    update.message.reply_text(answer)
+        task = task_round_trip
+    tid = WORKER.add_task(task, update, context)
+    tasks[update.effective_user.id] = tid
     return ConversationHandler.END
 
 
@@ -183,6 +201,7 @@ def main():
 
 
 if __name__ == '__main__':
+    WORKER = worker.Worker()
     with open('config.json') as config:
         CONFIG = json.load(config)
         main()
