@@ -80,7 +80,7 @@ def _validate_integer(update):
     return n
 
 
-def hi(update, context):
+def start(update, context):
     logger.info('Received /start from "%s".', update.effective_user.full_name)
     context.chat_data['query'] = model.Query(
         user_id=update.effective_user.id,
@@ -239,7 +239,7 @@ def main():
 
     # Add conversation handler with the states GENDER, PHOTO, LOCATION and BIO
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('hi', hi)],
+        entry_points=[CommandHandler('start', start)],
 
         states={
             ORIGIN: [MessageHandler(Filters.text, origin)],
