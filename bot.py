@@ -22,6 +22,7 @@ tasks = {}
 
 
 def start(update, context):
+    logger.info('Received /start from "%s".', update.effective_user.full_name)
     context.chat_data['query'] = model.Query(
         user_id=update.effective_user.id,
         username=update.effective_user.full_name,
@@ -116,6 +117,7 @@ def task_one_way(update, context):
         for date, price, airline, _ in results[:5]
     ])
     update.message.reply_text(answer)
+    logger.info('"%s" has received the result.', update.effective_user.full_name)
 
 
 def task_round_trip(update, context):
@@ -126,6 +128,7 @@ def task_round_trip(update, context):
         for date, days, price, airline1, airline2 in results[:5]
     ])
     update.message.reply_text(answer)
+    logger.info('"%s" has received the result.', update.effective_user.full_name)
 
 
 def finish_conversation(update, context):
@@ -140,6 +143,7 @@ def finish_conversation(update, context):
         task = task_round_trip
     tid = WORKER.add_task(task, update, context)
     tasks[update.effective_user.id] = tid
+    logger.info('Completed query for "%s".', update.effective_user.full_name)
     return ConversationHandler.END
 
 
