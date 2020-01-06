@@ -97,7 +97,8 @@ def finish_conversation(update, context):
     results = skyscanner.search_flights(CONFIG, context.user_data)
     answer = 'Here are the best 5 options I have found:\n\n'
     answer += '\n'.join([
-        f'{date}: {days} days for {price} on {airline}.' for date, days, price, airline, _ in results[:5]
+        f'{date}: {days} days for {price} on {airline1}/{airline2}.'
+        for date, days, price, airline1, airline2 in results[:5]
     ])
     update.message.reply_text(answer)
     return ConversationHandler.END

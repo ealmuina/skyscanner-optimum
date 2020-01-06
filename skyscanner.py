@@ -70,17 +70,17 @@ def poll_results(config, key):
     response = {}
 
     while 'Status' not in response or response['Status'] != 'UpdatesComplete':
-        time.sleep(1)
         try:
             response = requests.request("GET", url, headers=headers, params=querystring)
-        except:
-            continue
+        finally:
+            time.sleep(1)
         response = json.loads(response.text)
 
     carriers = {}
     for carrier in response['Carriers']:
-        if carrier['Id'] == 1011:
-            continue
+        # Exclude Evelop
+        # if carrier['Id'] == 1011:
+        #     continue
         carriers[carrier['Id']] = carrier['Name']
 
     direct_flights = {}
