@@ -51,6 +51,7 @@ def get_place(config, place):
     response = json.loads(response.text)
     if 'Places' in response and response['Places']:
         return response['Places'][0]['PlaceId']
+    return None
 
 
 def poll_results(config, key):
@@ -78,9 +79,6 @@ def poll_results(config, key):
 
     carriers = {}
     for carrier in response['Carriers']:
-        # Exclude Evelop
-        # if carrier['Id'] == 1011:
-        #     continue
         carriers[carrier['Id']] = carrier['Name']
 
     direct_flights = {}
@@ -122,8 +120,8 @@ def search_one_way(config, query):
             config,
             str(current),
             None,
-            get_place(config, query['origin']),
-            get_place(config, query['destination'])
+            query['origin'],
+            query['destination']
         )
         sessions.append((key, current))
         print(current)
@@ -156,8 +154,8 @@ def search_round_trip(config, query):
                 config,
                 str(current),
                 current + datetime.timedelta(days=i),
-                get_place(config, query['origin']),
-                get_place(config, query['destination'])
+                query['origin'],
+                query['destination']
             )
             sessions.append((key, current, i))
             print(current, i)

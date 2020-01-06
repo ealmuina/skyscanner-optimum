@@ -16,7 +16,6 @@ class Worker:
             if task_id in self.removed_tasks:
                 self.removed_tasks.remove(task_id)
             else:
-                print(task_id)
                 t = threading.Thread(target=func, args=args)
                 t.start()
                 t.join()

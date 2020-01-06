@@ -21,7 +21,66 @@ ORIGIN, DESTINATION, TRIP_TYPE, START_DATE, END_DATE, MIN_DAYS, MAX_DAYS = range
 tasks = {}
 
 
-def start(update, context):
+def _task_one_way(update, context):
+    answer = 'Here are the best 5 options I have found:\n\n'
+    results = skyscanner.search_one_way(CONFIG, context.chat_data)
+    answer += '\n'.join([
+        f'{date}: for {price} on {airline}.'
+        for date, price, airline, _ in results[:5]
+    ])
+    update.message.reply_text(answer)
+    logger.info('"%s" has received the result.', update.effective_user.full_name)
+
+
+def _task_round_trip(update, context):
+    answer = 'Here are the best 5 options I have found:\n\n'
+    results = skyscanner.search_round_trip(CONFIG, context.chat_data)
+    answer += '\n'.join([
+        f'{date}: {days} days for {price} on {airline1}/{airline2}.'
+        for date, days, price, airline1, airline2 in results[:5]
+    ])
+    update.message.reply_text(answer)
+    logger.info('"%s" has received the result.', update.effective_user.full_name)
+
+
+def _validate_date(update):
+    try:
+        date = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
+    except ValueError:
+        update.message.reply_text(
+            f'{update.message.text} is not a valid date. '
+            'Please be careful and try again...'
+        )
+        return None
+    if date < datetime.datetime.now().date():
+        update.message.reply_text(
+            'The date you have provided is in the past. '
+            'I am not a magician! '
+            'Please be careful and try again with a date from the future...'
+        )
+        return None
+    return date
+
+
+def _validate_integer(update):
+    try:
+        n = int(update.message.text)
+    except ValueError:
+        update.message.reply_text(
+            f'{update.message.text} is not a valid number of days. '
+            'Please be careful and try again...'
+        )
+        return None
+    if n <= 0:
+        update.message.reply_text(
+            'Yo have to specify a positive number of days. '
+            'Please be careful and try again...'
+        )
+        return None
+    return n
+
+
+def hi(update, context):
     logger.info('Received /start from "%s".', update.effective_user.full_name)
     context.chat_data['query'] = model.Query(
         user_id=update.effective_user.id,
@@ -40,21 +99,36 @@ def start(update, context):
 
 
 def origin(update, context):
-    context.chat_data['origin'] = update.message.text
+    origin_code = skyscanner.get_place(CONFIG, update.message.text)
+    if not origin_code:
+        update.message.reply_text(
+            f'It seems like you made a mistake spelling it or there are no flights from {update.message.text}. '
+            'Try again with a different origin...'
+        )
+        return ORIGIN
+    context.chat_data['origin'] = origin_code
     context.chat_data['query'].origin = update.message.text
     update.message.reply_text(
-        f'I have heard {context.chat_data["origin"]} is a very nice place! '
+        f'I have heard {update.message.text} is a very nice place! '
         'Where are you going to?'
     )
     return DESTINATION
 
 
 def destination(update, context):
-    context.chat_data['destination'] = update.message.text
+    destination_code = skyscanner.get_place(CONFIG, update.message.text)
+    if not destination_code:
+        update.message.reply_text(
+            f'It seems like you made a mistake spelling it or there are no flights to {update.message.text}. '
+            'Try again with a different origin...'
+        )
+        return DESTINATION
+    context.chat_data['destination'] = destination_code
     context.chat_data['query'].destination = update.message.text
+    context.chat_data['verbose_destination'] = update.message.text
     reply_keyboard = [['Round trip', 'One way']]
     update.message.reply_text(
-        f'I would like to go to {context.chat_data["destination"]} as well! '
+        f'I would like to go to {update.message.text} as well! '
         'Are you planning to do a one way or a round trip?',
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     )
@@ -73,7 +147,10 @@ def trip_type(update, context):
 
 
 def start_date(update, context):
-    context.chat_data['start_date'] = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
+    date = _validate_date(update)
+    if not date:
+        return START_DATE
+    context.chat_data['start_date'] = date
     context.chat_data['query'].start_date = context.chat_data['start_date']
     update.message.reply_text(
         'And when should I stop? (DD/MM/YYYY)'
@@ -82,19 +159,25 @@ def start_date(update, context):
 
 
 def end_date(update, context):
-    context.chat_data['end_date'] = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
+    date = _validate_date(update)
+    if not date:
+        return END_DATE
+    context.chat_data['end_date'] = date
     context.chat_data['query'].end_date = context.chat_data['end_date']
     if context.chat_data['trip_type'] == 'One way':
         return finish_conversation(update, context)
     else:
         update.message.reply_text(
-            f"What is the minimum number of days you would like to stay in {context.chat_data['destination']}?"
+            f"What is the minimum number of days you would like to stay in {context.chat_data['verbose_destination']}?"
         )
         return MIN_DAYS
 
 
 def min_days(update, context):
-    context.chat_data['min_days'] = int(update.message.text)
+    days = _validate_integer(update)
+    if not days:
+        return MIN_DAYS
+    context.chat_data['min_days'] = days
     context.chat_data['query'].min_days = context.chat_data['min_days']
     update.message.reply_text(
         'Just one more question... '
@@ -104,31 +187,12 @@ def min_days(update, context):
 
 
 def max_days(update, context):
-    context.chat_data['max_days'] = int(update.message.text)
+    days = _validate_integer(update)
+    if not days:
+        return MAX_DAYS
+    context.chat_data['max_days'] = days
     context.chat_data['query'].max_days = context.chat_data['max_days']
     return finish_conversation(update, context)
-
-
-def task_one_way(update, context):
-    answer = 'Here are the best 5 options I have found:\n\n'
-    results = skyscanner.search_one_way(CONFIG, context.chat_data)
-    answer += '\n'.join([
-        f'{date}: for {price} on {airline}.'
-        for date, price, airline, _ in results[:5]
-    ])
-    update.message.reply_text(answer)
-    logger.info('"%s" has received the result.', update.effective_user.full_name)
-
-
-def task_round_trip(update, context):
-    answer = 'Here are the best 5 options I have found:\n\n'
-    results = skyscanner.search_round_trip(CONFIG, context.chat_data)
-    answer += '\n'.join([
-        f'{date}: {days} days for {price} on {airline1}/{airline2}.'
-        for date, days, price, airline1, airline2 in results[:5]
-    ])
-    update.message.reply_text(answer)
-    logger.info('"%s" has received the result.', update.effective_user.full_name)
 
 
 def finish_conversation(update, context):
@@ -138,9 +202,9 @@ def finish_conversation(update, context):
         'I will be back as soon as I find the best flights for you...'
     )
     if context.chat_data['trip_type'] == 'One way':
-        task = task_one_way
+        task = _task_one_way
     else:
-        task = task_round_trip
+        task = _task_round_trip
     tid = WORKER.add_task(task, update, context)
     tasks[update.effective_user.id] = tid
     logger.info('Completed query for "%s".', update.effective_user.full_name)
@@ -175,7 +239,7 @@ def main():
 
     # Add conversation handler with the states GENDER, PHOTO, LOCATION and BIO
     conv_handler = ConversationHandler(
-        entry_points=[CommandHandler('start', start)],
+        entry_points=[CommandHandler('hi', hi)],
 
         states={
             ORIGIN: [MessageHandler(Filters.text, origin)],
