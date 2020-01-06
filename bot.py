@@ -6,9 +6,10 @@ from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
 
-# Enable logging
 import skyscanner
+import model
 
+# Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
 
@@ -18,29 +19,35 @@ ORIGIN, DESTINATION, TRIP_TYPE, START_DATE, END_DATE, MIN_DAYS, MAX_DAYS = range
 
 
 def start(update, context):
+    context.chat_data['query'] = model.Query(
+        user_id=update.effective_user.id,
+        username=update.effective_user.full_name,
+        creation_date=datetime.datetime.now()
+    )
     update.message.reply_text(
         'Hi! My name is SkyscannerBot. I will help you find a cheap flight. '
         'Send /cancel to stop talking to me.\n\n'
         'What is the origin of your flight?'
     )
-    context.user_data['origin'] = update.message.text
     return ORIGIN
 
 
 def origin(update, context):
-    context.user_data['origin'] = update.message.text
+    context.chat_data['origin'] = update.message.text
+    context.chat_data['query'].origin = update.message.text
     update.message.reply_text(
-        f'I have heard {context.user_data["origin"]} is a very nice place! '
+        f'I have heard {context.chat_data["origin"]} is a very nice place! '
         'Where are you going to?'
     )
     return DESTINATION
 
 
 def destination(update, context):
-    context.user_data['destination'] = update.message.text
+    context.chat_data['destination'] = update.message.text
+    context.chat_data['query'].destination = update.message.text
     reply_keyboard = [['Round trip', 'One way']]
     update.message.reply_text(
-        f'I would like to go to {context.user_data["destination"]} as well! '
+        f'I would like to go to {context.chat_data["destination"]} as well! '
         'Are you planning to do a one way or a round trip?',
         reply_markup=ReplyKeyboardMarkup(reply_keyboard, one_time_keyboard=True)
     )
@@ -48,7 +55,9 @@ def destination(update, context):
 
 
 def trip_type(update, context):
-    context.user_data['trip_type'] = update.message.text
+    context.chat_data['trip_type'] = update.message.text
+    if update.message.text == 'Round trip':
+        context.chat_data['query'].round_trip = True
     update.message.reply_text(
         'We are almost done, I just need a couple more questions. '
         'From which date should I start looking for flights? (DD/MM/YYYY)'
@@ -57,7 +66,8 @@ def trip_type(update, context):
 
 
 def start_date(update, context):
-    context.user_data['start_date'] = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
+    context.chat_data['start_date'] = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
+    context.chat_data['query'].start_date = context.chat_data['start_date']
     update.message.reply_text(
         'And when should I stop? (DD/MM/YYYY)'
     )
@@ -65,8 +75,9 @@ def start_date(update, context):
 
 
 def end_date(update, context):
-    context.user_data['end_date'] = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
-    if context.user_data['trip_type'] == 'One way':
+    context.chat_data['end_date'] = datetime.datetime.strptime(update.message.text, '%d/%m/%Y').date()
+    context.chat_data['query'].end_date = context.chat_data['end_date']
+    if context.chat_data['trip_type'] == 'One way':
         return finish_conversation(update, context)
     else:
         update.message.reply_text(
@@ -76,7 +87,8 @@ def end_date(update, context):
 
 
 def min_days(update, context):
-    context.user_data['min_days'] = int(update.message.text)
+    context.chat_data['min_days'] = int(update.message.text)
+    context.chat_data['query'].min_days = context.chat_data['min_days']
     update.message.reply_text(
         'Just one more question... '
         'What is the maximum number of days you could be there?'
@@ -85,24 +97,26 @@ def min_days(update, context):
 
 
 def max_days(update, context):
-    context.user_data['max_days'] = int(update.message.text)
+    context.chat_data['max_days'] = int(update.message.text)
+    context.chat_data['query'].max_days = context.chat_data['max_days']
     return finish_conversation(update, context)
 
 
 def finish_conversation(update, context):
+    context.chat_data['query'].save()
     update.message.reply_text(
         'Alright, I think I have everything I needed. '
         'I will be back as soon as I find the best flights for you...'
     )
     answer = 'Here are the best 5 options I have found:\n\n'
-    if context.user_data['trip_type'] == 'One way':
-        results = skyscanner.search_one_way(CONFIG, context.user_data)
+    if context.chat_data['trip_type'] == 'One way':
+        results = skyscanner.search_one_way(CONFIG, context.chat_data)
         answer += '\n'.join([
             f'{date}: for {price} on {airline}.'
             for date, price, airline, _ in results[:5]
         ])
     else:
-        results = skyscanner.search_round_trip(CONFIG, context.user_data)
+        results = skyscanner.search_round_trip(CONFIG, context.chat_data)
         answer += '\n'.join([
             f'{date}: {days} days for {price} on {airline1}/{airline2}.'
             for date, days, price, airline1, airline2 in results[:5]
@@ -114,14 +128,17 @@ def finish_conversation(update, context):
 def error(update, context):
     """Log Errors caused by Updates."""
     logger.warning('Update "%s" caused error "%s"', update, context.error)
+    context.chat_data['query'].cancelled = True
+    context.chat_data['query'].save()
 
 
 def cancel(update, context):
     user = update.message.from_user
+    context.chat_data['query'].cancelled = True
     logger.info("User %s canceled the conversation.", user.first_name)
     update.message.reply_text('Bye! I hope we can talk again some day.',
                               reply_markup=ReplyKeyboardRemove())
-
+    context.chat_data['query'].save()
     return ConversationHandler.END
 
 
