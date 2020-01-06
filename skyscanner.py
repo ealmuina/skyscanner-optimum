@@ -165,6 +165,8 @@ def search_round_trip(config, query):
 
     for key, start, days in sessions:
         flight = poll_results(config, key)
+        if not flight:
+            continue
         entry = (start, days, *flight)
 
         results.append(entry)
