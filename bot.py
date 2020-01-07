@@ -28,7 +28,7 @@ def _remove_previous_task(update):
 
 def _send_result_message(update, context, message):
     if message:
-        message = 'Here are the best 5 options I have found:\n\n' + message
+        message = 'Here are the best options I have found:\n\n' + message
     else:
         message = f"I am sorry, there are no direct flights from {context.chat_data['query'].origin} to " \
                   f"{context.chat_data['query'].destination} that meet the conditions you have specified. :'("
