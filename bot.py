@@ -42,7 +42,7 @@ def _send_result_message(update, context, message):
 def _task_one_way(update, context):
     results = skyscanner.search_one_way(CONFIG, context.chat_data)
     message = '\n'.join([
-        f'{date}: for {price} on {airline}.'
+        f'{date}: for {price}€ on {airline}.'
         for date, price, airline, _ in results[:5]
     ])
     _send_result_message(update, context, message)
@@ -51,7 +51,7 @@ def _task_one_way(update, context):
 def _task_round_trip(update, context):
     results = skyscanner.search_round_trip(CONFIG, context.chat_data)
     message = '\n'.join([
-        f'{date}: {days} days for {price} on {airline1}/{airline2}.'
+        f'{date}: {days} days for {price}€ on {airline1}/{airline2}.'
         for date, days, price, airline1, airline2 in results[:5]
     ])
     _send_result_message(update, context, message)
