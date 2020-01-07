@@ -7,7 +7,7 @@ class Query(Model):
     user_id = IntegerField()
     username = CharField()
     creation_date = DateTimeField()
-    results_date = DateTimeField()
+    results_date = DateTimeField(null=True)
     origin = CharField(null=True)
     destination = CharField(null=True)
     start_date = DateField(null=True)
