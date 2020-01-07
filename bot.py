@@ -49,12 +49,14 @@ def _task_one_way(update, context):
         ])
     else:
         message = 'No direct flights found.'
-    if with_stops:
-        message += '\n\nBest flight with stops:\n\n'
-        date, price, airlines = with_stops[0]
-        message += f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"/".join(airlines)}'
-    else:
-        message += '\nNo flights with stops found.'
+        if with_stops:
+            message += '\n\nBest flights with stops:\n\n'
+            message = '\n'.join([
+                f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"/".join(airlines)}.'
+                for date, price, airlines in with_stops[:5]
+            ])
+        else:
+            message += '\nNo flights with stops found.'
     _send_result_message(update, context, message)
 
 
@@ -67,12 +69,14 @@ def _task_round_trip(update, context):
         ])
     else:
         message = 'No direct flights found.'
-    if with_stops:
-        message += '\n\nBest flight with stops:\n\n'
-        date, days, price, airlines = with_stops[0]
-        message += f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"/".join(airlines)}'
-    else:
-        message += '\nNo flights with stops found.'
+        if with_stops:
+            message += '\n\nBest flights with stops:\n\n'
+            message = '\n'.join([
+                f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"/".join(airlines)}.'
+                for date, days, price, airlines in with_stops[:5]
+            ])
+        else:
+            message += '\nNo flights with stops found.'
     _send_result_message(update, context, message)
 
 
