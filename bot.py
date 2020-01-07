@@ -34,6 +34,7 @@ def _send_result_message(update, context, message):
         message = f"I am sorry, there are no direct flights from {context.chat_data['query'].origin} to " \
                   f"{context.chat_data['query'].destination} that meet the conditions you have specified. :'("
     update.message.reply_text(message)
+    TASKS.pop(update.effective_user.id)
     context.chat_data['query'].results_date = datetime.datetime.now()
     logger.info('"%s" has received the result.', update.effective_user.full_name)
 
@@ -48,7 +49,6 @@ def _task_one_way(update, context):
 
 
 def _task_round_trip(update, context):
-    answer = 'Here are the best 5 options I have found:\n\n'
     results = skyscanner.search_round_trip(CONFIG, context.chat_data)
     message = '\n'.join([
         f'{date}: {days} days for {price} on {airline1}/{airline2}.'
