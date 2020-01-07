@@ -32,6 +32,7 @@ def _send_result_message(update, context, message):
         message = f"I am sorry, there are no direct flights from {context.chat_data['query'].origin} to " \
                   f"{context.chat_data['query'].destination} that meet the conditions you have specified. :'("
     update.message.reply_text(message)
+    context.chat_data['query'].results_date = datetime.datetime.now()
     logger.info('"%s" has received the result.', update.effective_user.full_name)
 
 
@@ -113,7 +114,8 @@ def origin(update, context):
     origin_code = skyscanner.get_place(CONFIG, update.message.text)
     if not origin_code:
         update.message.reply_text(
-            f'It seems like you made a mistake spelling it or there are no flights from {update.message.text}. '
+            'It seems like you made a mistake spelling it or there are no flights from a city named '
+            f'{update.message.text}. '
             'Try again with a different origin...'
         )
         return ORIGIN
@@ -130,8 +132,15 @@ def destination(update, context):
     destination_code = skyscanner.get_place(CONFIG, update.message.text)
     if not destination_code:
         update.message.reply_text(
-            f'It seems like you made a mistake spelling it or there are no flights to {update.message.text}. '
-            'Try again with a different origin...'
+            'It seems like you made a mistake spelling it or there are no flights from a city named '
+            f'{update.message.text}. '
+            'Try again with a different destination...'
+        )
+        return DESTINATION
+    if destination_code == context.chat_data['origin']:
+        update.message.reply_text(
+            f'Your origin and destination cannot be both {update.message.text}! '
+            'Try again with a different destination...'
         )
         return DESTINATION
     context.chat_data['destination'] = destination_code

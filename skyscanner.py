@@ -49,7 +49,7 @@ def get_place(config, place):
     }
     response = requests.request("GET", url, headers=headers, params=querystring)
     response = json.loads(response.text)
-    if 'Places' in response and response['Places']:
+    if 'Places' in response and response['Places'] and response['Places'][0]['CityId'] != '-sky':
         return response['Places'][0]['PlaceId']
     return None
 
