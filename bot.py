@@ -23,6 +23,7 @@ def _remove_previous_task(update):
     if update.effective_user.id in TASKS:
         WORKER.remove_task(TASKS[update.effective_user.id])
         TASKS.pop(update.effective_user.id)
+        update.message.reply_text('Your previous query has been cancelled.')
 
 
 def _send_result_message(update, context, message):
