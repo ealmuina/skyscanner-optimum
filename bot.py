@@ -36,6 +36,7 @@ def _send_result_message(update, context, message):
     update.message.reply_text(message)
     TASKS.pop(update.effective_user.id)
     context.chat_data['query'].results_date = datetime.datetime.now()
+    context.chat_data['query'].save()
     logger.info('"%s" has received the result.', update.effective_user.full_name)
 
 
