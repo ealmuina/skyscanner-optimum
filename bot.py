@@ -31,7 +31,7 @@ def _send_result_message(update, context, message):
         message = 'Here are the best options I have found:\n\n' + message
         message += '\n\nYou can go to https://www.skyscanner.com/ to confirm a reservation if you wish.'
     else:
-        message = f"I am sorry, there are no direct flights from {context.chat_data['query'].origin} to " \
+        message = f"I am sorry, there are no flights from {context.chat_data['query'].origin} to " \
                   f"{context.chat_data['query'].destination} that meet the conditions you have specified. :'("
     update.message.reply_text(message)
     TASKS.pop(update.effective_user.id)
@@ -40,20 +40,38 @@ def _send_result_message(update, context, message):
 
 
 def _task_one_way(update, context):
-    results = skyscanner.search_one_way(CONFIG, context.chat_data)
-    message = '\n'.join([
-        f'{date}: for {price}€ on {airline}.'
-        for date, price, airline, _ in results[:5]
-    ])
+    directs, with_stops = skyscanner.search_one_way(CONFIG, context.chat_data)
+    if directs:
+        message = '\n'.join([
+            f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"/".join(airlines)}.'
+            for date, price, airlines in directs[:5]
+        ])
+    else:
+        message = 'No direct flights found.'
+    if with_stops:
+        message += '\n\nBest flight with stops:\n\n'
+        date, price, airlines = with_stops[0]
+        message += f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"/".join(airlines)}'
+    else:
+        message += '\nNo flights with stops found.'
     _send_result_message(update, context, message)
 
 
 def _task_round_trip(update, context):
-    results = skyscanner.search_round_trip(CONFIG, context.chat_data)
-    message = '\n'.join([
-        f'{date}: {days} days for {price}€ on {airline1}/{airline2}.'
-        for date, days, price, airline1, airline2 in results[:5]
-    ])
+    directs, with_stops = skyscanner.search_round_trip(CONFIG, context.chat_data)
+    if directs:
+        message = '\n'.join([
+            f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"/".join(airlines)}.'
+            for date, days, price, airlines in directs[:5]
+        ])
+    else:
+        message = 'No direct flights found.'
+    if with_stops:
+        message += '\n\nBest flight with stops:\n\n'
+        date, days, price, airlines = with_stops[0]
+        message += f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"/".join(airlines)}'
+    else:
+        message += '\nNo flights with stops found.'
     _send_result_message(update, context, message)
 
 

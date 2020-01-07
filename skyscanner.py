@@ -54,13 +54,39 @@ def get_place(config, place):
     return None
 
 
+def get_best_flight(response, flights):
+    best = None
+
+    for itinerary in response['Itineraries']:
+        out_id = itinerary['OutboundLegId']
+        if 'InboundLegId' in itinerary:
+            in_id = itinerary['InboundLegId']
+        else:
+            in_id = None
+
+        if out_id not in flights or (in_id and in_id not in flights):
+            continue
+
+        for p in itinerary['PricingOptions']:
+            if not best or p['Price'] < best[0]:
+                airlines = set(flights[out_id])
+                if in_id:
+                    airlines.update(set(flights[in_id]))
+                best = (
+                    p['Price'],
+                    airlines
+                )
+
+    return best
+
+
 def poll_results(config, key):
     url = f"https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/uk2/v1.0/{key}"
 
     querystring = {
         "pageIndex": "0",
         "pageSize": "1000",
-        "stops": "0"
+        "stops": "1"
     }
 
     headers = {
@@ -81,39 +107,25 @@ def poll_results(config, key):
     for carrier in response['Carriers']:
         carriers[carrier['Id']] = carrier['Name']
 
-    direct_flights = {}
+    direct_flights, stops_flights = {}, {}
     for leg in response['Legs']:
+        flights = tuple(carriers[x] for x in leg['Carriers'])
         if not leg['Stops'] and leg['Carriers'][0] in carriers:
-            direct_flights[leg['Id']] = carriers[leg['Carriers'][0]]
+            direct_flights[leg['Id']] = flights
+        if leg['Stops']:
+            stops_flights[leg['Id']] = flights
 
-    best = None
+    best_direct = get_best_flight(response, direct_flights)
+    best_with_stops = get_best_flight(response, stops_flights)
 
-    for itinerary in response['Itineraries']:
-        out_id = itinerary['OutboundLegId']
-        if 'InboundLegId' in itinerary:
-            in_id = itinerary['InboundLegId']
-        else:
-            in_id = None
-
-        if out_id not in direct_flights or (in_id and in_id not in direct_flights):
-            continue
-
-        for p in itinerary['PricingOptions']:
-            if not best or p['Price'] < best[0]:
-                best = (
-                    p['Price'],
-                    direct_flights[out_id],
-                    direct_flights[in_id] if in_id else None
-                )
-
-    return best
+    return best_direct, best_with_stops
 
 
 def search_one_way(config, query):
     current = query['start_date']
     end = query['end_date']
     sessions = []
-    results = []
+    directs, with_stops = [], []
 
     while current <= end:
         key = create_session(
@@ -128,27 +140,22 @@ def search_one_way(config, query):
         current += datetime.timedelta(days=1)
 
     for key, start in sessions:
-        flight = poll_results(config, key)
-        if not flight:
-            continue
-        entry = (start, *flight)
+        f1, f2 = poll_results(config, key)
+        if f1:
+            directs.append((start, *f1))
+        if f2:
+            with_stops.append((start, *f2))
 
-        results.append(entry)
-        message = ' '.join(map(str, entry))
-
-        if flight[0] < 600:
-            message = '\033[92m' + message + '\033[0m'
-        print(message)
-
-    results.sort(key=lambda e: e[1])
-    return results
+    directs.sort(key=lambda e: e[1])
+    with_stops.sort(key=lambda e: e[1])
+    return directs, with_stops
 
 
 def search_round_trip(config, query):
     current = query['start_date']
     end = query['end_date']
     sessions = []
-    results = []
+    directs, with_stops = [], []
 
     while current <= end:
         for i in range(query['min_days'], query['max_days'] + 1):
@@ -164,32 +171,26 @@ def search_round_trip(config, query):
         current += datetime.timedelta(days=1)
 
     for key, start, days in sessions:
-        flight = poll_results(config, key)
-        if not flight:
-            continue
-        entry = (start, days, *flight)
+        f1, f2 = poll_results(config, key)
+        if f1:
+            directs.append((start, days, *f1))
+        if f2:
+            with_stops.append((start, days, *f2))
 
-        results.append(entry)
-        message = ' '.join(map(str, entry))
-
-        if flight[0] < 600:
-            message = '\033[92m' + message + '\033[0m'
-        print(message)
-
-    results.sort(key=lambda e: e[2])
-    return results
+    directs.sort(key=lambda e: e[1])
+    with_stops.sort(key=lambda e: e[1])
+    return directs, with_stops
 
 
 if __name__ == '__main__':
-    query = {
-        'origin': 'Madrid',
-        'destination': 'Havana',
-        'start_date': datetime.date(2020, 4, 1),
-        'end_date': datetime.date(2020, 5, 14),
-        'min_days': 17,
-        'max_days': 22
-    }
-
     with open('config.json') as config:
         config = json.load(config)
+        query = {
+            'origin': get_place(config, 'Madrid'),
+            'destination': get_place(config, 'Havana'),
+            'start_date': datetime.date(2020, 4, 1),
+            'end_date': datetime.date(2020, 4, 1),
+            'min_days': 17,
+            'max_days': 17
+        }
         search_round_trip(config, query)
