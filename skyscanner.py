@@ -181,8 +181,8 @@ def search_round_trip(config, query):
         if f2:
             with_stops.append((start, days, *f2))
 
-    directs.sort(key=lambda e: e[1])
-    with_stops.sort(key=lambda e: e[1])
+    directs.sort(key=lambda e: e[2])
+    with_stops.sort(key=lambda e: e[2])
     return directs, with_stops
 
 
@@ -193,7 +193,7 @@ if __name__ == '__main__':
             'origin': get_place(config, 'Sofia'),
             'destination': get_place(config, 'Havana'),
             'start_date': datetime.date(2020, 4, 5),
-            'end_date': datetime.date(2020, 4, 5),
+            'end_date': datetime.date(2020, 4, 10),
             'min_days': 7,
             'max_days': 7
         }
