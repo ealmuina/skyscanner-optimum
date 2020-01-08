@@ -208,7 +208,7 @@ def end_date(update, context):
         return END_DATE
     if date < context.chat_data['start_date']:
         update.message.reply_text(
-            f'You must set a date after the one you set before {context.chat_data["start_date"]}. '
+            f'You must set a date after the one you set before {context.chat_data["start_date"].strftime("%d/%m/%Y")}. '
             'Please try again...'
         )
         return END_DATE
