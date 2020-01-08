@@ -218,7 +218,7 @@ def end_date(update, context):
             'Please, set a date with less than 60 days of difference with one you set before '
             f'({context.chat_data["start_date"]})...'
         )
-        return MAX_DAYS
+        return END_DATE
     context.chat_data['end_date'] = date
     context.chat_data['query'].end_date = context.chat_data['end_date']
     if context.chat_data['trip_type'] == 'One way':
