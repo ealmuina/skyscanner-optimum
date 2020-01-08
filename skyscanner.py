@@ -54,10 +54,10 @@ def get_place(config, place):
     return None
 
 
-def get_best_flight(response, flights):
+def get_best_flight(itineraries, flights):
     best = None
 
-    for itinerary in response['Itineraries']:
+    for itinerary in itineraries:
         out_id = itinerary['OutboundLegId']
         if 'InboundLegId' in itinerary:
             in_id = itinerary['InboundLegId']
@@ -80,22 +80,16 @@ def get_best_flight(response, flights):
     return best
 
 
-def poll_results(config, key):
+def fill_data(config, key):
     url = f"https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/uk2/v1.0/{key}"
-
-    querystring = {
-        "pageIndex": "0",
-        "pageSize": "1000",
-        "stops": "1"
-    }
-
     headers = {
         'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
         'x-rapidapi-key': config['x-rapidapi-key']
     }
 
-    response = {}
+    querystring = {"pageIndex": "0", "pageSize": "1000000", "stops": "1"}
 
+    response = {}
     while 'Status' not in response or response['Status'] != 'UpdatesComplete':
         try:
             response = requests.request("GET", url, headers=headers, params=querystring)
@@ -103,20 +97,30 @@ def poll_results(config, key):
             time.sleep(1)
         response = json.loads(response.text)
 
-    carriers = {}
-    for carrier in response['Carriers']:
-        carriers[carrier['Id']] = carrier['Name']
+    itineraries = response['Itineraries']
+    legs = response['Legs']
+    carriers = response['Carriers']
+
+    return itineraries, legs, carriers
+
+
+def poll_results(config, key):
+    itineraries, legs, carriers = fill_data(config, key)
+
+    airlines = {}
+    for carrier in carriers:
+        airlines[carrier['Id']] = carrier['Name']
 
     direct_flights, stops_flights = {}, {}
-    for leg in response['Legs']:
-        flights = tuple(carriers[x] for x in leg['Carriers'])
-        if not leg['Stops'] and leg['Carriers'][0] in carriers:
+    for leg in legs:
+        flights = tuple(airlines[x] for x in leg['Carriers'])
+        if not leg['Stops']:
             direct_flights[leg['Id']] = flights
-        if leg['Stops']:
+        else:
             stops_flights[leg['Id']] = flights
 
-    best_direct = get_best_flight(response, direct_flights)
-    best_with_stops = get_best_flight(response, stops_flights)
+    best_direct = get_best_flight(itineraries, direct_flights)
+    best_with_stops = get_best_flight(itineraries, stops_flights)
 
     return best_direct, best_with_stops
 
@@ -186,11 +190,11 @@ if __name__ == '__main__':
     with open('config.json') as config:
         config = json.load(config)
         query = {
-            'origin': get_place(config, 'Madrid'),
+            'origin': get_place(config, 'Sofia'),
             'destination': get_place(config, 'Havana'),
-            'start_date': datetime.date(2020, 4, 1),
-            'end_date': datetime.date(2020, 4, 1),
-            'min_days': 17,
-            'max_days': 17
+            'start_date': datetime.date(2020, 4, 5),
+            'end_date': datetime.date(2020, 4, 5),
+            'min_days': 7,
+            'max_days': 7
         }
         search_round_trip(config, query)

@@ -44,7 +44,7 @@ def _task_one_way(update, context):
     directs, with_stops = skyscanner.search_one_way(CONFIG, context.chat_data)
     if directs:
         message = '\n'.join([
-            f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"/".join(airlines)}.'
+            f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"|".join(airlines)}.'
             for date, price, airlines in directs[:5]
         ])
     else:
@@ -52,7 +52,7 @@ def _task_one_way(update, context):
         if with_stops:
             message += '\n\nBest flights with stops:\n\n'
             message = '\n'.join([
-                f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"/".join(airlines)}.'
+                f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"|".join(airlines)}.'
                 for date, price, airlines in with_stops[:5]
             ])
         else:
@@ -64,7 +64,7 @@ def _task_round_trip(update, context):
     directs, with_stops = skyscanner.search_round_trip(CONFIG, context.chat_data)
     if directs:
         message = '\n'.join([
-            f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"/".join(airlines)}.'
+            f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"|".join(airlines)}.'
             for date, days, price, airlines in directs[:5]
         ])
     else:
@@ -72,7 +72,7 @@ def _task_round_trip(update, context):
         if with_stops:
             message += '\n\nBest flights with stops:\n\n'
             message = '\n'.join([
-                f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"/".join(airlines)}.'
+                f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"|".join(airlines)}.'
                 for date, days, price, airlines in with_stops[:5]
             ])
         else:
