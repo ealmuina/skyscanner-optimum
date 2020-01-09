@@ -40,8 +40,8 @@ def _send_result_message(update, context, message):
     logger.info('"%s" has received the result.', update.effective_user.full_name)
 
 
-def _task_one_way(update, context):
-    directs, with_stops = skyscanner.search_one_way(CONFIG, context.chat_data)
+def _task_one_way(api_key, update, context):
+    directs, with_stops = skyscanner.search_one_way(api_key, context.chat_data)
     if directs:
         message = '\n'.join([
             f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"|".join(airlines)}.'
@@ -60,8 +60,8 @@ def _task_one_way(update, context):
     _send_result_message(update, context, message)
 
 
-def _task_round_trip(update, context):
-    directs, with_stops = skyscanner.search_round_trip(CONFIG, context.chat_data)
+def _task_round_trip(api_key, update, context):
+    directs, with_stops = skyscanner.search_round_trip(api_key, context.chat_data)
     if directs:
         message = '\n'.join([
             f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"|".join(airlines)}.'
@@ -136,7 +136,7 @@ def start(update, context):
 
 
 def origin(update, context):
-    origin_code = skyscanner.get_place(CONFIG, update.message.text)
+    origin_code = skyscanner.get_place(CONFIG['x-rapidapi-keys'][0], update.message.text)
     if not origin_code:
         update.message.reply_text(
             'It seems like you made a mistake spelling it or there are no flights from a city named '
@@ -154,7 +154,7 @@ def origin(update, context):
 
 
 def destination(update, context):
-    destination_code = skyscanner.get_place(CONFIG, update.message.text)
+    destination_code = skyscanner.get_place(CONFIG['x-rapidapi-keys'][0], update.message.text)
     if not destination_code:
         update.message.reply_text(
             'It seems like you made a mistake spelling it or there are no flights from a city named '
@@ -212,10 +212,10 @@ def end_date(update, context):
             'Please try again...'
         )
         return END_DATE
-    if (date - context.chat_data['start_date']).days > 60:
+    if (date - context.chat_data['start_date']).days > 30:
         update.message.reply_text(
             'That range of dates for search is too broad. '
-            'Please, set a date with less than 60 days of difference with one you set before '
+            'Please, set a date with less than 30 days of difference with one you set before '
             f'({context.chat_data["start_date"]})...'
         )
         return END_DATE
@@ -342,7 +342,7 @@ def main():
 
 if __name__ == '__main__':
     TASKS = {}
-    WORKER = worker.Worker()
     with open('config.json') as config:
         CONFIG = json.load(config)
+        WORKER = worker.Worker(CONFIG['x-rapidapi-keys'])
         main()

@@ -7,7 +7,7 @@ import requests
 API_WAIT_TIME = 3
 
 
-def create_session(config, outbound_date, inbound_date, origin_place, destination_place):
+def create_session(api_key, outbound_date, inbound_date, origin_place, destination_place):
     url = "https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/v1.0"
 
     payload = "cabinClass=economy" \
@@ -24,7 +24,7 @@ def create_session(config, outbound_date, inbound_date, origin_place, destinatio
 
     headers = {
         'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
-        'x-rapidapi-key': config['x-rapidapi-key'],
+        'x-rapidapi-key': api_key,
         'content-type': "application/x-www-form-urlencoded"
     }
 
@@ -33,8 +33,6 @@ def create_session(config, outbound_date, inbound_date, origin_place, destinatio
             response = requests.request("POST", url, data=payload, headers=headers)
             if response.text == '{}':
                 break
-            else:
-                print(response.text)
         finally:
             time.sleep(API_WAIT_TIME)
 
@@ -42,12 +40,12 @@ def create_session(config, outbound_date, inbound_date, origin_place, destinatio
     return location
 
 
-def get_place(config, place):
+def get_place(api_key, place):
     url = "https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/autosuggest/v1.0/ES/EUR/es-ES/"
     querystring = {"query": place}
     headers = {
         'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
-        'x-rapidapi-key': config['x-rapidapi-key']
+        'x-rapidapi-key': api_key
     }
     response = requests.request("GET", url, headers=headers, params=querystring)
     response = json.loads(response.text)
@@ -82,11 +80,11 @@ def get_best_flight(itineraries, flights):
     return best
 
 
-def fill_data(config, key):
+def fill_data(api_key, key):
     url = f"https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/uk2/v1.0/{key}"
     headers = {
         'x-rapidapi-host': "skyscanner-skyscanner-flight-search-v1.p.rapidapi.com",
-        'x-rapidapi-key': config['x-rapidapi-key']
+        'x-rapidapi-key': api_key
     }
 
     querystring = {"pageIndex": "0", "pageSize": "1000000", "stops": "1"}
@@ -106,8 +104,8 @@ def fill_data(config, key):
     return itineraries, legs, carriers
 
 
-def poll_results(config, key):
-    itineraries, legs, carriers = fill_data(config, key)
+def poll_results(api_key, key):
+    itineraries, legs, carriers = fill_data(api_key, key)
 
     airlines = {}
     for carrier in carriers:
@@ -127,7 +125,7 @@ def poll_results(config, key):
     return best_direct, best_with_stops
 
 
-def search_one_way(config, query):
+def search_one_way(api_key, query):
     current = query['start_date']
     end = query['end_date']
     sessions = []
@@ -135,7 +133,7 @@ def search_one_way(config, query):
 
     while current <= end:
         key = create_session(
-            config,
+            api_key,
             str(current),
             None,
             query['origin'],
@@ -146,7 +144,7 @@ def search_one_way(config, query):
         current += datetime.timedelta(days=1)
 
     for key, start in sessions:
-        f1, f2 = poll_results(config, key)
+        f1, f2 = poll_results(api_key, key)
         if f1:
             directs.append((start, *f1))
         if f2:
@@ -158,7 +156,7 @@ def search_one_way(config, query):
     return directs, with_stops
 
 
-def search_round_trip(config, query):
+def search_round_trip(api_key, query):
     current = query['start_date']
     end = query['end_date']
     sessions = []
@@ -167,7 +165,7 @@ def search_round_trip(config, query):
     while current <= end:
         for i in range(query['min_days'], query['max_days'] + 1):
             key = create_session(
-                config,
+                api_key,
                 str(current),
                 current + datetime.timedelta(days=i),
                 query['origin'],
@@ -178,7 +176,7 @@ def search_round_trip(config, query):
         current += datetime.timedelta(days=1)
 
     for key, start, days in sessions:
-        f1, f2 = poll_results(config, key)
+        f1, f2 = poll_results(api_key, key)
         if f1:
             directs.append((start, days, *f1))
         if f2:
@@ -190,15 +188,20 @@ def search_round_trip(config, query):
     return directs, with_stops
 
 
-if __name__ == '__main__':
+def main():
     with open('config.json') as config:
         config = json.load(config)
+        api_key = config['x-rapidapi-keys'][0]
         query = {
-            'origin': get_place(config, 'Sofia'),
-            'destination': get_place(config, 'Havana'),
+            'origin': get_place(api_key, 'Sofia'),
+            'destination': get_place(api_key, 'Havana'),
             'start_date': datetime.date(2020, 4, 5),
             'end_date': datetime.date(2020, 4, 10),
             'min_days': 7,
             'max_days': 7
         }
-        search_round_trip(config, query)
+        search_round_trip(api_key, query)
+
+
+if __name__ == '__main__':
+    main()

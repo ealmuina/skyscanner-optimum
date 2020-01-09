@@ -3,16 +3,18 @@ import threading
 
 
 class Worker:
-    def __init__(self):
+    def __init__(self, api_keys):
         self.queue = queue.Queue()
         self.task_id = 0
         self.removed_tasks = set()
         self.current_tasks = set()
-        threading.Thread(target=self._run_daemon).start()
+        for api_key in api_keys:
+            threading.Thread(target=self._run_daemon, args=(api_key,)).start()
 
-    def _run_daemon(self):
+    def _run_daemon(self, api_key):
         while True:
             task_id, func, args = self.queue.get()
+            args = (api_key, *args)
             if task_id in self.removed_tasks:
                 self.removed_tasks.remove(task_id)
             else:
