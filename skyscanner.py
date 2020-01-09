@@ -4,6 +4,8 @@ import time
 
 import requests
 
+API_WAIT_TIME = 3
+
 
 def create_session(config, outbound_date, inbound_date, origin_place, destination_place):
     url = "https://skyscanner-skyscanner-flight-search-v1.p.rapidapi.com/apiservices/pricing/v1.0"
@@ -34,7 +36,7 @@ def create_session(config, outbound_date, inbound_date, origin_place, destinatio
             else:
                 print(response.text)
         finally:
-            time.sleep(3)
+            time.sleep(API_WAIT_TIME)
 
     location = response.headers['Location'].split('/')[-1]
     return location
@@ -94,7 +96,7 @@ def fill_data(config, key):
         try:
             response = requests.request("GET", url, headers=headers, params=querystring)
         finally:
-            time.sleep(1)
+            time.sleep(API_WAIT_TIME)
         response = json.loads(response.text)
 
     itineraries = response['Itineraries']
@@ -140,7 +142,7 @@ def search_one_way(config, query):
             query['destination']
         )
         sessions.append((key, current))
-        print(current)
+        print(datetime.datetime.now(), current)
         current += datetime.timedelta(days=1)
 
     for key, start in sessions:
@@ -149,6 +151,7 @@ def search_one_way(config, query):
             directs.append((start, *f1))
         if f2:
             with_stops.append((start, *f2))
+        print(datetime.datetime.now(), start)
 
     directs.sort(key=lambda e: e[1])
     with_stops.sort(key=lambda e: e[1])
@@ -171,7 +174,7 @@ def search_round_trip(config, query):
                 query['destination']
             )
             sessions.append((key, current, i))
-            print(current, i)
+            print(datetime.datetime.now(), current, i)
         current += datetime.timedelta(days=1)
 
     for key, start, days in sessions:
@@ -180,6 +183,7 @@ def search_round_trip(config, query):
             directs.append((start, days, *f1))
         if f2:
             with_stops.append((start, days, *f2))
+        print(datetime.datetime.now(), start, days)
 
     directs.sort(key=lambda e: e[2])
     with_stops.sort(key=lambda e: e[2])
