@@ -212,10 +212,10 @@ def end_date(update, context):
             'Please try again...'
         )
         return END_DATE
-    if (date - context.chat_data['start_date']).days > 30:
+    if (date - context.chat_data['start_date']).days > 60:
         update.message.reply_text(
             'That range of dates for search is too broad. '
-            'Please, set a date with less than 30 days of difference with one you set before '
+            'Please, set a date with less than 60 days of difference with one you set before '
             f'({context.chat_data["start_date"]})...'
         )
         return END_DATE
