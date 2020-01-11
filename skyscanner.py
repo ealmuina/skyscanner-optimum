@@ -1,5 +1,6 @@
 import datetime
 import json
+import logging
 import time
 
 import requests
@@ -7,6 +8,11 @@ import requests
 API_WAIT_TIME = 3
 API_MAX_ERRORS = 50
 API_REFRESH_TIME = 5 * 60
+
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+                    level=logging.INFO)
+
+logger = logging.getLogger(__name__)
 
 
 def create_session(api_key, outbound_date, inbound_date, origin_place, destination_place):
@@ -151,7 +157,7 @@ def search_one_way(api_key, query):
             query['destination']
         )
         sessions.append((key, current))
-        print(datetime.datetime.now(), current)
+        logger.info(f"{current}")
         current += datetime.timedelta(days=1)
 
     for key, start in sessions:
@@ -160,7 +166,7 @@ def search_one_way(api_key, query):
             directs.append((start, *f1))
         if f2:
             with_stops.append((start, *f2))
-        print(datetime.datetime.now(), start)
+        logger.info(f"{start}")
 
     directs.sort(key=lambda e: e[1])
     with_stops.sort(key=lambda e: e[1])
@@ -183,7 +189,7 @@ def search_round_trip(api_key, query):
                 query['destination']
             )
             sessions.append((key, current, i))
-            print(datetime.datetime.now(), current, i)
+            logger.info(f"{current} {i}")
         current += datetime.timedelta(days=1)
 
     for key, start, days in sessions:
@@ -192,7 +198,7 @@ def search_round_trip(api_key, query):
             directs.append((start, days, *f1))
         if f2:
             with_stops.append((start, days, *f2))
-        print(datetime.datetime.now(), start, days)
+        logger.info(f"{start} {days}")
 
     directs.sort(key=lambda e: e[2])
     with_stops.sort(key=lambda e: e[2])
