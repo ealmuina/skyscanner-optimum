@@ -5,6 +5,8 @@ import time
 import requests
 
 API_WAIT_TIME = 3
+API_MAX_ERRORS = 50
+API_REFRESH_TIME = 5 * 60
 
 
 def create_session(api_key, outbound_date, inbound_date, origin_place, destination_place):
@@ -28,11 +30,16 @@ def create_session(api_key, outbound_date, inbound_date, origin_place, destinati
         'content-type': "application/x-www-form-urlencoded"
     }
 
+    attempts = 0
     while True:
         try:
             response = requests.request("POST", url, data=payload, headers=headers)
             if response.text == '{}':
                 break
+            else:
+                attempts += 1
+                if attempts > API_MAX_ERRORS:
+                    time.sleep(API_REFRESH_TIME)
         finally:
             time.sleep(API_WAIT_TIME)
 
@@ -90,12 +97,16 @@ def fill_data(api_key, key):
     querystring = {"pageIndex": "0", "pageSize": "1000000", "stops": "1"}
 
     response = {}
+    attempts = 0
     while 'Status' not in response or response['Status'] != 'UpdatesComplete':
         try:
             response = requests.request("GET", url, headers=headers, params=querystring)
         finally:
             time.sleep(API_WAIT_TIME)
         response = json.loads(response.text)
+        attempts += 1
+        if attempts > API_MAX_ERRORS:
+            time.sleep(API_REFRESH_TIME)
 
     itineraries = response['Itineraries']
     legs = response['Legs']
