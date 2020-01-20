@@ -131,7 +131,9 @@ def start(update, context):
         'Send /cancel to stop talking to me.\n\n'
         'What is the origin of your flight?'
     )
-    _remove_previous_task(update)
+    if update.effective_user.id in TASKS:
+        update.message.reply_text('Please wait until your previous query finishes or /cancel it first.')
+        return ConversationHandler.END
     return ORIGIN
 
 
