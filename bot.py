@@ -121,6 +121,9 @@ def _validate_integer(update):
 
 def start(update, context):
     logger.info('Received /start from "%s".', update.effective_user.full_name)
+    if update.effective_user.id in TASKS:
+        update.message.reply_text('Please wait until your previous query finishes or /cancel it first.')
+        return ConversationHandler.END
     context.chat_data['query'] = model.Query(
         user_id=update.effective_user.id,
         username=update.effective_user.full_name,
@@ -131,9 +134,6 @@ def start(update, context):
         'Send /cancel to stop talking to me.\n\n'
         'What is the origin of your flight?'
     )
-    if update.effective_user.id in TASKS:
-        update.message.reply_text('Please wait until your previous query finishes or /cancel it first.')
-        return ConversationHandler.END
     return ORIGIN
 
 
