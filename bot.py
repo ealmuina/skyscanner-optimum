@@ -122,7 +122,7 @@ def _validate_integer(update):
 def start(update, context):
     logger.info('Received /start from "%s".', update.effective_user.full_name)
     if update.effective_user.id in TASKS:
-        update.message.reply_text('Please wait until your previous query finishes or /cancel it first.')
+        update.message.reply_text('Please wait until your previous query finishes.')
         return ConversationHandler.END
     context.chat_data['query'] = model.Query(
         user_id=update.effective_user.id,
