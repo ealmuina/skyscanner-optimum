@@ -1,14 +1,15 @@
 import datetime
 import json
 import logging
+import threading
 
 from telegram import (ReplyKeyboardMarkup, ReplyKeyboardRemove)
 from telegram.ext import (Updater, CommandHandler, MessageHandler, Filters,
                           ConversationHandler)
 
-import skyscanner
 import model
-import worker
+from api.skyscanner import FlightQuery
+from api.base import get_place
 
 # Enable logging
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
@@ -21,63 +22,28 @@ ORIGIN, DESTINATION, TRIP_TYPE, START_DATE, END_DATE, MIN_DAYS, MAX_DAYS = range
 
 def _remove_previous_task(update):
     if update.effective_user.id in TASKS:
-        WORKER.remove_task(TASKS[update.effective_user.id])
         TASKS.pop(update.effective_user.id)
         update.message.reply_text('Your previous query has been cancelled.')
 
 
-def _send_result_message(update, context, message):
-    if message:
-        message = 'Here are the best options I have found:\n\n' + message
-        message += '\n\nYou can go to https://www.skyscanner.com/ to confirm a reservation if you wish.'
-    else:
-        message = f"I am sorry, there are no flights from {context.chat_data['query'].origin} to " \
-                  f"{context.chat_data['query'].destination} that meet the conditions you have specified. :'("
-    update.message.reply_text(message)
-    TASKS.pop(update.effective_user.id)
-    context.chat_data['query'].results_date = datetime.datetime.now()
-    context.chat_data['query'].save()
-    logger.info('"%s" has received the result.', update.effective_user.full_name)
-
-
-def _task_one_way(api_key, update, context):
-    directs, with_stops = skyscanner.search_one_way(api_key, context.chat_data)
-    if directs:
-        message = '\n'.join([
-            f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"|".join(airlines)}.'
-            for date, price, airlines in directs[:5]
-        ])
-    else:
-        message = 'No direct flights found.'
-        if with_stops:
-            message += '\n\nBest flights with stops:\n\n'
-            message = '\n'.join([
-                f'{date.strftime("%d/%m/%Y")}: for {price}€ on {"|".join(airlines)}.'
-                for date, price, airlines in with_stops[:5]
-            ])
+def _send_result_message(update, context):
+    def report(direct, with_stops):
+        if direct or with_stops:
+            message = 'Here are the best options I have found:\n\n'
+            flights = direct if direct else with_stops
+            for f in flights:
+                message += str(f) + '\n'
+            message += '\nYou can go to https://www.skyscanner.com/ to confirm a reservation if you wish.'
         else:
-            message += '\nNo flights with stops found.'
-    _send_result_message(update, context, message)
+            message = f"I am sorry, there are no flights from {context.chat_data['query'].origin} to " \
+                      f"{context.chat_data['query'].destination} that meet the conditions you have specified. :'("
+        update.message.reply_text(message)
+        TASKS.pop(update.effective_user.id)
+        context.chat_data['query'].results_date = datetime.datetime.now()
+        context.chat_data['query'].save()
+        logger.info('"%s" has received the result.', update.effective_user.full_name)
 
-
-def _task_round_trip(api_key, update, context):
-    directs, with_stops = skyscanner.search_round_trip(api_key, context.chat_data)
-    if directs:
-        message = '\n'.join([
-            f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"|".join(airlines)}.'
-            for date, days, price, airlines in directs[:5]
-        ])
-    else:
-        message = 'No direct flights found.'
-        if with_stops:
-            message += '\n\nBest flights with stops:\n\n'
-            message = '\n'.join([
-                f'{date.strftime("%d/%m/%Y")}: {days} days for {price}€ on {"|".join(airlines)}.'
-                for date, days, price, airlines in with_stops[:5]
-            ])
-        else:
-            message += '\nNo flights with stops found.'
-    _send_result_message(update, context, message)
+    return report
 
 
 def _validate_date(update):
@@ -138,7 +104,7 @@ def start(update, context):
 
 
 def origin(update, context):
-    origin_code = skyscanner.get_place(CONFIG['x-rapidapi-keys'][0], update.message.text)
+    origin_code = get_place(CONFIG['x-rapidapi-keys'][0], update.message.text)
     if not origin_code:
         update.message.reply_text(
             'It seems like you made a mistake spelling it or there are no flights from a city named '
@@ -156,7 +122,7 @@ def origin(update, context):
 
 
 def destination(update, context):
-    destination_code = skyscanner.get_place(CONFIG['x-rapidapi-keys'][0], update.message.text)
+    destination_code = get_place(CONFIG['x-rapidapi-keys'][0], update.message.text)
     if not destination_code:
         update.message.reply_text(
             'It seems like you made a mistake spelling it or there are no flights from a city named '
@@ -273,12 +239,14 @@ def finish_conversation(update, context):
         'Alright, I think I have everything I needed. '
         'I will be back as soon as I find the best flights for you...'
     )
-    if context.chat_data['trip_type'] == 'One way':
-        task = _task_one_way
-    else:
-        task = _task_round_trip
-    tid = WORKER.add_task(task, update, context)
-    TASKS[update.effective_user.id] = tid
+    fq = FlightQuery(
+        CONFIG,
+        context.chat_data,
+        _send_result_message(update, context)
+    )
+    t = threading.Thread(target=fq.execute)
+    t.start()
+    TASKS[update.effective_user.id] = t
     logger.info('Completed query for "%s".', update.effective_user.full_name)
     return ConversationHandler.END
 
@@ -346,5 +314,4 @@ if __name__ == '__main__':
     TASKS = {}
     with open('config.json') as config:
         CONFIG = json.load(config)
-        WORKER = worker.Worker(CONFIG['x-rapidapi-keys'])
         main()
