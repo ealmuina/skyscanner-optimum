@@ -28,6 +28,8 @@ def _remove_previous_task(update):
 
 def _send_result_message(update, context):
     def report(direct, with_stops):
+        direct = direct[:5]
+        with_stops = with_stops[:5]
         if direct or with_stops:
             message = 'Here are the best options I have found:\n\n'
             flights = direct if direct else with_stops

@@ -4,7 +4,7 @@ import logging
 import pika
 import requests
 
-API_WAIT_TIME = 3
+API_WAIT_TIME = 0
 API_MAX_ERRORS = 50
 API_REFRESH_TIME = 5 * 60
 

@@ -129,5 +129,5 @@ class Result:
             end_date = datetime.datetime.strptime(self.end_date, '%Y-%m-%d')
             days = (end_date - start_date).days
             result += f'{days} days '
-        result += f'for {self.price}€ on {"-".join(self.airlines)}'
+        result += f'for {"%.2f" % self.price}€ on {"-".join(self.airlines)}'
         return result
