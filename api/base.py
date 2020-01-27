@@ -4,9 +4,9 @@ import logging
 import pika
 import requests
 
-API_WAIT_TIME = 0
+API_WAIT_TIME = 1
 API_MAX_ERRORS = 50
-API_REFRESH_TIME = 5 * 60
+API_REFRESH_TIME = 1.5 * 60
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
                     level=logging.INFO)
@@ -17,7 +17,6 @@ logger = logging.getLogger(__name__)
 class BaseWorker:
     def __init__(self, config):
         self.config = config
-        self.exchange = config['exchange']
 
         # Setup rabbitmq
         self.connection = pika.BlockingConnection(pika.ConnectionParameters(
@@ -26,10 +25,6 @@ class BaseWorker:
         ))
         self.channel = self.connection.channel()
         self.channel.basic_qos(prefetch_count=1)
-
-        self.channel.exchange_declare(exchange=self.exchange, exchange_type='direct')
-        result = self.channel.queue_declare(queue='', exclusive=True)
-        self.queue = result.method.queue
 
 
 def get_place(api_key, place):

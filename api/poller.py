@@ -9,11 +9,8 @@ class Poller(BaseWorker):
         super().__init__(config)
 
         # Setup rabbitmq
-        self.channel.queue_bind(
-            exchange=self.exchange,
-            queue=self.queue,
-            routing_key='poll'
-        )
+        result = self.channel.queue_declare(queue='skyscanner-poll')
+        self.queue = result.method.queue
         self.channel.basic_consume(
             queue=self.queue,
             on_message_callback=self._poll_session
@@ -65,6 +62,7 @@ class Poller(BaseWorker):
             response = json.loads(response.text)
             attempts += 1
             if attempts > API_MAX_ERRORS:
+                logger.warning("Too many errors received. I'm going to sleep for a while.")
                 time.sleep(API_REFRESH_TIME)
                 attempts = 0
 

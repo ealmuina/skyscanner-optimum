@@ -29,6 +29,8 @@ class FlightQuery(BaseWorker):
         self.max_days = query.get('max_days', None)
 
         # Setup rabbitmq
+        result = self.channel.queue_declare(queue='', exclusive=True)
+        self.queue = result.method.queue
         self.channel.basic_consume(
             queue=self.queue,
             on_message_callback=self._result_callback
@@ -36,8 +38,8 @@ class FlightQuery(BaseWorker):
 
     def _send_message(self, obj):
         self.channel.basic_publish(
-            exchange=self.exchange,
-            routing_key='make',
+            exchange='',
+            routing_key='skyscanner-make',
             properties=pika.BasicProperties(
                 correlation_id=self.uuid,
                 reply_to=self.queue,

@@ -9,11 +9,8 @@ class Maker(BaseWorker):
         super().__init__(config)
 
         # Setup rabbitmq
-        self.channel.queue_bind(
-            exchange=self.exchange,
-            queue=self.queue,
-            routing_key='make'
-        )
+        result = self.channel.queue_declare(queue='skyscanner-make')
+        self.queue = result.method.queue
         self.channel.basic_consume(
             queue=self.queue,
             on_message_callback=self._create_session
@@ -48,6 +45,7 @@ class Maker(BaseWorker):
                 else:
                     attempts += 1
                     if attempts > API_MAX_ERRORS:
+                        logger.warning("Too many errors received. I'm going to sleep for a while.")
                         time.sleep(API_REFRESH_TIME)
                         attempts = 0
             finally:
@@ -68,8 +66,8 @@ class Maker(BaseWorker):
 
     def _send_message(self, message, correlation_id, reply_to):
         self.channel.basic_publish(
-            exchange=self.exchange,
-            routing_key='poll',
+            exchange='',
+            routing_key='skyscanner-poll',
             properties=pika.BasicProperties(
                 correlation_id=correlation_id,
                 reply_to=reply_to,
