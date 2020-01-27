@@ -50,6 +50,7 @@ class Maker(BaseWorker):
                     attempts += 1
                     if attempts > API_MAX_ERRORS:
                         time.sleep(API_REFRESH_TIME)
+                        attempts = 0
             finally:
                 time.sleep(API_WAIT_TIME)
 

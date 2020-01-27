@@ -83,11 +83,10 @@ class FlightQuery(BaseWorker):
 
     def execute(self):
         current = self.start_date
-        k = 0
 
         while current <= self.end_date:
             message = {
-                'api_key': self.api_keys[k],
+                'api_key': self.api_keys[self.pending_sessions % len(self.api_keys)],
                 'start_date': str(current),
                 'origin': self.origin,
                 'destination': self.destination
@@ -95,16 +94,17 @@ class FlightQuery(BaseWorker):
             if self.min_days:
                 for i in range(self.min_days, self.max_days + 1):
                     message.update({
+                        'api_key': self.api_keys[self.pending_sessions % len(self.api_keys)],
                         'end_date': str(current + datetime.timedelta(days=i))
                     })
                     logger.info(f"{current} {i}")
                     self._send_message(message)
+                    self.pending_sessions += 1
             else:
                 self._send_message(message)
+                self.pending_sessions += 1
 
             current += datetime.timedelta(days=1)
-            k = (k + 1) % len(self.api_keys)
-            self.pending_sessions += 1
 
         while self.pending_sessions:
             self.connection.process_data_events()
