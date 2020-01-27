@@ -25,6 +25,7 @@ class BaseWorker:
             credentials=pika.PlainCredentials(config['rabbitmq-user'], config['rabbitmq-password'])
         ))
         self.channel = self.connection.channel()
+        self.channel.basic_qos(prefetch_count=1)
 
         self.channel.exchange_declare(exchange=self.exchange, exchange_type='direct')
         result = self.channel.queue_declare(queue='', exclusive=True)

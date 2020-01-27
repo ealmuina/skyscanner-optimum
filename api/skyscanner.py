@@ -31,8 +31,7 @@ class FlightQuery(BaseWorker):
         # Setup rabbitmq
         self.channel.basic_consume(
             queue=self.queue,
-            on_message_callback=self._result_callback,
-            auto_ack=True
+            on_message_callback=self._result_callback
         )
 
     def _send_message(self, obj):
@@ -80,6 +79,8 @@ class FlightQuery(BaseWorker):
             directs.sort()
             with_stops.sort()
             self.callback(directs, with_stops)
+
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def execute(self):
         current = self.start_date

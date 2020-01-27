@@ -16,8 +16,7 @@ class Maker(BaseWorker):
         )
         self.channel.basic_consume(
             queue=self.queue,
-            on_message_callback=self._create_session,
-            auto_ack=True
+            on_message_callback=self._create_session
         )
 
     def _create_session(self, ch, method, props, body):
@@ -63,6 +62,7 @@ class Maker(BaseWorker):
             props.correlation_id,
             props.reply_to
         )
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
         logger.info(f'Created session with api-key {query["api_key"]}')
 

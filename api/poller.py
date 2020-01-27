@@ -16,8 +16,7 @@ class Poller(BaseWorker):
         )
         self.channel.basic_consume(
             queue=self.queue,
-            on_message_callback=self._poll_session,
-            auto_ack=True
+            on_message_callback=self._poll_session
         )
 
     @staticmethod
@@ -67,6 +66,7 @@ class Poller(BaseWorker):
             attempts += 1
             if attempts > API_MAX_ERRORS:
                 time.sleep(API_REFRESH_TIME)
+                attempts = 0
 
         itineraries = response['Itineraries']
         legs = response['Legs']
@@ -96,6 +96,7 @@ class Poller(BaseWorker):
             props.correlation_id,
             props.reply_to
         )
+        ch.basic_ack(delivery_tag=method.delivery_tag)
 
         logger.info(f'Polled session with api-key {data["query"]["api_key"]}')
 
