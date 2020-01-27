@@ -40,7 +40,7 @@ class Maker(BaseWorker):
         while True:
             try:
                 response = requests.request("POST", url, data=payload, headers=headers)
-                if response.text == '{}':
+                if response.text == '{}' and 'Location' in response.headers:
                     break
                 else:
                     attempts += 1
