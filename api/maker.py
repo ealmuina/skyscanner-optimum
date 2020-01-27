@@ -9,7 +9,7 @@ class Maker(BaseWorker):
         super().__init__(config)
 
         # Setup rabbitmq
-        result = self.channel.queue_declare(queue='skyscanner-make')
+        result = self.channel.queue_declare(queue='skyscanner-make', auto_delete=True)
         self.queue = result.method.queue
         self.channel.basic_consume(
             queue=self.queue,
