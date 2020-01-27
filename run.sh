@@ -7,7 +7,7 @@ mkdir -p logs
 venv/bin/sqlite_web -H 0.0.0.0 -p 7070 db.sqlite3 &
 
 # Start session makers
-for i in {0..4}
+for i in {0..3}
 do
   venv/bin/python -m api.maker config.json 2> "logs/log_maker$i.txt" &
 done
