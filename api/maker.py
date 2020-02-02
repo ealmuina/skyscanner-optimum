@@ -46,10 +46,10 @@ class Maker(BaseWorker):
                     attempts += 1
                     if attempts > API_MAX_ERRORS:
                         logger.warning("Too many errors received. I'm going to sleep for a while.")
-                        time.sleep(API_REFRESH_TIME)
+                        self.connection.sleep(API_REFRESH_TIME)
                         attempts = 0
             finally:
-                time.sleep(API_WAIT_TIME)
+                self.connection.sleep(API_WAIT_TIME)
 
         location = response.headers['Location'].split('/')[-1]
         self._send_message(

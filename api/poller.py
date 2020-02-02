@@ -58,12 +58,12 @@ class Poller(BaseWorker):
             try:
                 response = requests.request("GET", url, headers=headers, params=querystring)
             finally:
-                time.sleep(API_WAIT_TIME)
+                self.connection.sleep(API_WAIT_TIME)
             response = json.loads(response.text)
             attempts += 1
             if attempts > API_MAX_ERRORS:
                 logger.warning("Too many errors received. I'm going to sleep for a while.")
-                time.sleep(API_REFRESH_TIME)
+                self.connection.sleep(API_REFRESH_TIME)
                 attempts = 0
 
         itineraries = response['Itineraries']
