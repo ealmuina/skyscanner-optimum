@@ -81,6 +81,7 @@ class FlightQuery(BaseWorker):
             directs.sort()
             with_stops.sort()
             self.callback(directs, with_stops)
+            self.channel.close()
 
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
