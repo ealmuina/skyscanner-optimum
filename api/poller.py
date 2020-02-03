@@ -1,7 +1,8 @@
 import sys
-import time
 
 from .base import *
+
+POLLER_WAIT_TIME = 5
 
 
 class Poller(BaseWorker):
@@ -50,15 +51,16 @@ class Poller(BaseWorker):
             'x-rapidapi-key': data['query']['api_key']
         }
 
-        querystring = {"pageIndex": "0", "pageSize": "1000000", "stops": "1"}
+        querystring = {"pageIndex": "0", "pageSize": "100", "stops": "1", "sortType": "duration"}
 
         response = {}
         attempts = 0
         while 'Status' not in response or response['Status'] != 'UpdatesComplete':
+            self.connection.sleep(POLLER_WAIT_TIME)
             try:
                 response = requests.request("GET", url, headers=headers, params=querystring)
-            finally:
-                self.connection.sleep(API_WAIT_TIME)
+            except Exception:
+                continue
             response = json.loads(response.text)
             attempts += 1
             if attempts > API_MAX_ERRORS:
