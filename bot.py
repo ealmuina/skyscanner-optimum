@@ -66,10 +66,17 @@ def _validate_date(update):
             'Please be careful and try again with a date from the future...'
         )
         return None
+    if date > datetime.datetime.now() + datetime.timedelta(days=365):
+        update.message.reply_text(
+            'The date you have provided is too far in the future. '
+            'I am not a magician! '
+            'Please be careful and try again with a date closer than a year from today...'
+        )
+        return None
     return date
 
 
-def _validate_integer(update):
+def _validate_integer(update, end_date):
     try:
         n = int(update.message.text)
     except ValueError:
@@ -80,8 +87,14 @@ def _validate_integer(update):
         return None
     if n <= 0:
         update.message.reply_text(
-            'Yo have to specify a positive number of days. '
+            'You have to specify a positive number of days. '
             'Please be careful and try again...'
+        )
+        return None
+    if end_date + n > datetime.datetime.now() + datetime.timedelta(days=365):
+        update.message.reply_text(
+            'Flights that far from today have not been scheduled yet. '
+            'Please try again with less days...'
         )
         return None
     return n
@@ -201,7 +214,7 @@ def end_date(update, context):
 
 
 def min_days(update, context):
-    days = _validate_integer(update)
+    days = _validate_integer(update, context.chat_data['end_date'])
     if not days:
         return MIN_DAYS
     context.chat_data['min_days'] = days
@@ -214,7 +227,7 @@ def min_days(update, context):
 
 
 def max_days(update, context):
-    days = _validate_integer(update)
+    days = _validate_integer(update, context.chat_data['end_date'])
     if not days:
         return MAX_DAYS
     if days < context.chat_data['min_days']:
