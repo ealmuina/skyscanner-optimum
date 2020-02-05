@@ -91,7 +91,7 @@ def _validate_integer(update, end_date):
             'Please be careful and try again...'
         )
         return None
-    if end_date + n > datetime.date.today() + datetime.timedelta(days=365):
+    if end_date + datetime.timedelta(days=n) > datetime.date.today() + datetime.timedelta(days=365):
         update.message.reply_text(
             'Flights that far from today have not been scheduled yet. '
             'Please try again with less days...'
