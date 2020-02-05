@@ -66,7 +66,7 @@ def _validate_date(update):
             'Please be careful and try again with a date from the future...'
         )
         return None
-    if date > datetime.datetime.now() + datetime.timedelta(days=365):
+    if date > datetime.date.today() + datetime.timedelta(days=365):
         update.message.reply_text(
             'The date you have provided is too far in the future. '
             'I am not a magician! '
@@ -91,7 +91,7 @@ def _validate_integer(update, end_date):
             'Please be careful and try again...'
         )
         return None
-    if end_date + n > datetime.datetime.now() + datetime.timedelta(days=365):
+    if end_date + n > datetime.date.today() + datetime.timedelta(days=365):
         update.message.reply_text(
             'Flights that far from today have not been scheduled yet. '
             'Please try again with less days...'
