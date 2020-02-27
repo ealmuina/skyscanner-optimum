@@ -2,8 +2,6 @@ import sys
 
 from .base import *
 
-POLLER_WAIT_TIME = 5
-
 
 class Poller(BaseWorker):
     def __init__(self, config):
@@ -56,7 +54,7 @@ class Poller(BaseWorker):
         response = {}
         attempts = 0
         while 'Status' not in response or response['Status'] != 'UpdatesComplete':
-            self.connection.sleep(POLLER_WAIT_TIME)
+            self.connection.sleep(API_WAIT_TIME)
             try:
                 response = requests.request("GET", url, headers=headers, params=querystring)
             except Exception:
